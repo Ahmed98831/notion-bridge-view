@@ -3,6 +3,9 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
+import { AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface NotionBlock {
   type: string;
@@ -16,28 +19,37 @@ interface NotionBlock {
 export const NotionContent = () => {
   const [content, setContent] = useState<NotionBlock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchNotionContent = async () => {
-      try {
-        const { data, error } = await supabase.functions.invoke('notion-page');
-        
-        if (error) throw error;
-        
-        setContent(data.results);
-      } catch (error) {
-        console.error('Error fetching Notion content:', error);
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load content. Please try again later.",
-        });
-      } finally {
-        setIsLoading(false);
+  const fetchNotionContent = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const { data, error } = await supabase.functions.invoke('notion-page');
+      
+      if (error) throw error;
+      
+      if (!data || !data.results) {
+        throw new Error('Invalid response format from Notion API');
       }
-    };
+      
+      setContent(data.results);
+    } catch (err) {
+      console.error('Error fetching Notion content:', err);
+      setError('Failed to load content from Notion. Please try again later.');
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load content. Please try again later.",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchNotionContent();
   }, [toast]);
 
@@ -51,6 +63,35 @@ export const NotionContent = () => {
     );
   }
 
+  if (error) {
+    return (
+      <Alert variant="destructive" className="mb-4">
+        <AlertCircle className="h-4 w-4" />
+        <AlertTitle>Error</AlertTitle>
+        <AlertDescription>{error}</AlertDescription>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="mt-2"
+          onClick={fetchNotionContent}
+        >
+          <RefreshCw className="mr-2 h-4 w-4" /> Try Again
+        </Button>
+      </Alert>
+    );
+  }
+
+  if (content.length === 0) {
+    return (
+      <Alert className="mb-4">
+        <AlertTitle>No Content</AlertTitle>
+        <AlertDescription>
+          No content was found on this Notion page. Make sure the page has content and the integration has access.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
     <div className="prose prose-slate max-w-none">
       {content.map((block, index) => {
@@ -59,7 +100,7 @@ export const NotionContent = () => {
             <p key={index} className="mb-4 text-gray-700">
               {block.paragraph?.rich_text.map((text, i) => (
                 <span key={i}>{text.plain_text}</span>
-              ))}
+              )) || 'Empty paragraph'}
             </p>
           );
         }
