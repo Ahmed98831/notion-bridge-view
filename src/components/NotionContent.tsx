@@ -20,6 +20,7 @@ export const NotionContent = () => {
   const [content, setContent] = useState<NotionBlock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
 
   const fetchNotionContent = async () => {
@@ -27,18 +28,36 @@ export const NotionContent = () => {
       setIsLoading(true);
       setError(null);
       
-      const { data, error } = await supabase.functions.invoke('notion-page');
+      // Call the Supabase Edge Function
+      const { data, error: functionError } = await supabase.functions.invoke('notion-page');
       
-      if (error) throw error;
+      if (functionError) {
+        console.error('Function invocation error:', functionError);
+        throw new Error(`Function error: ${functionError.message}`);
+      }
       
-      if (!data || !data.results) {
+      // Validate the response
+      if (!data) {
+        throw new Error('No data returned from Notion API');
+      }
+      
+      if (!data.results || !Array.isArray(data.results)) {
+        console.error('Invalid response format:', data);
         throw new Error('Invalid response format from Notion API');
       }
       
+      // Set the content
       setContent(data.results);
     } catch (err) {
       console.error('Error fetching Notion content:', err);
-      setError('Failed to load content from Notion. Please try again later.');
+      
+      let errorMessage = 'Failed to load content from Notion. Please try again later.';
+      if (err instanceof Error) {
+        errorMessage = `${errorMessage} (${err.message})`;
+      }
+      
+      setError(errorMessage);
+      
       toast({
         variant: "destructive",
         title: "Error",
@@ -51,7 +70,11 @@ export const NotionContent = () => {
 
   useEffect(() => {
     fetchNotionContent();
-  }, [toast]);
+  }, [retryCount, toast]);
+
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+  };
 
   if (isLoading) {
     return (
@@ -73,7 +96,7 @@ export const NotionContent = () => {
           variant="outline" 
           size="sm" 
           className="mt-2"
-          onClick={fetchNotionContent}
+          onClick={handleRetry}
         >
           <RefreshCw className="mr-2 h-4 w-4" /> Try Again
         </Button>
@@ -88,6 +111,14 @@ export const NotionContent = () => {
         <AlertDescription>
           No content was found on this Notion page. Make sure the page has content and the integration has access.
         </AlertDescription>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="mt-2"
+          onClick={handleRetry}
+        >
+          <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+        </Button>
       </Alert>
     );
   }
@@ -98,7 +129,7 @@ export const NotionContent = () => {
         if (block.type === 'paragraph') {
           return (
             <p key={index} className="mb-4 text-gray-700">
-              {block.paragraph?.rich_text.map((text, i) => (
+              {block.paragraph?.rich_text?.map((text, i) => (
                 <span key={i}>{text.plain_text}</span>
               )) || 'Empty paragraph'}
             </p>

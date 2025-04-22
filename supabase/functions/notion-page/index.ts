@@ -8,6 +8,7 @@ const corsHeaders = {
 };
 
 Deno.serve(async (req) => {
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -16,27 +17,40 @@ Deno.serve(async (req) => {
     const notionToken = Deno.env.get('NOTION_TOKEN');
     
     if (!notionToken) {
+      console.error('Notion token is not configured');
       throw new Error('Notion token is not configured');
     }
     
+    // Create Notion client with the token
     const notion = new Client({ auth: notionToken });
-    // Remove hyphens and potential suffixes from the page ID
+    
+    // The page ID without hyphens
     const pageId = '1d96b3e4e1aa81a68d30f4e48b24222b';
 
-    // Try using blocks.children.list
-    const page = await notion.blocks.children.list({
+    // Get the page content using the blocks API
+    const response = await notion.blocks.children.list({
       block_id: pageId,
     });
 
-    return new Response(JSON.stringify(page), {
+    console.log('Notion API Response:', JSON.stringify(response));
+    
+    return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (error) {
     console.error('Notion API Error:', error);
-    return new Response(JSON.stringify({ error: error.message, stack: error.stack }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 500,
-    });
+    
+    // Detailed error response for debugging
+    return new Response(
+      JSON.stringify({ 
+        error: error.message, 
+        stack: error.stack,
+        message: 'Failed to fetch content from Notion API'
+      }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500,
+      }
+    );
   }
 });
