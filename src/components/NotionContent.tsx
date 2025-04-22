@@ -28,13 +28,28 @@ export const NotionContent = () => {
       setIsLoading(true);
       setError(null);
       
-      // Call the Supabase Edge Function
-      const { data, error: functionError } = await supabase.functions.invoke('notion-page');
+      console.log("Fetching Notion content...");
+      
+      // Call the Supabase Edge Function with a timeout
+      const functionPromise = supabase.functions.invoke('notion-page');
+      
+      // Set a timeout to catch long-running requests
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Request timed out")), 10000);
+      });
+      
+      // Race the function promise against the timeout
+      const { data, error: functionError } = await Promise.race([
+        functionPromise,
+        timeoutPromise,
+      ]) as any;
       
       if (functionError) {
         console.error('Function invocation error:', functionError);
         throw new Error(`Function error: ${functionError.message}`);
       }
+      
+      console.log("Received response from Notion API:", data);
       
       // Validate the response
       if (!data) {
@@ -43,16 +58,29 @@ export const NotionContent = () => {
       
       if (!data.results || !Array.isArray(data.results)) {
         console.error('Invalid response format:', data);
+        
+        // If we got an error object from the API
+        if (data.error) {
+          throw new Error(`Notion API error: ${data.error}`);
+        }
+        
         throw new Error('Invalid response format from Notion API');
       }
       
       // Set the content
       setContent(data.results);
+      
+      // Show success toast
+      toast({
+        title: "Success",
+        description: "Content loaded successfully from Notion.",
+      });
     } catch (err) {
       console.error('Error fetching Notion content:', err);
       
       let errorMessage = 'Failed to load content from Notion. Please try again later.';
       if (err instanceof Error) {
+        // Add more specific error information to help with debugging
         errorMessage = `${errorMessage} (${err.message})`;
       }
       
@@ -70,7 +98,8 @@ export const NotionContent = () => {
 
   useEffect(() => {
     fetchNotionContent();
-  }, [retryCount, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [retryCount]);
 
   const handleRetry = () => {
     setRetryCount(prev => prev + 1);
@@ -82,6 +111,8 @@ export const NotionContent = () => {
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-4 w-5/6" />
+        <Skeleton className="h-4 w-2/3" />
+        <Skeleton className="h-4 w-4/5" />
       </div>
     );
   }
@@ -135,7 +166,8 @@ export const NotionContent = () => {
             </p>
           );
         }
-        return null;
+        // Add support for other block types as needed
+        return <div key={index}>Unsupported block type: {block.type}</div>;
       })}
     </div>
   );

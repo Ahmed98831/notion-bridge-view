@@ -14,18 +14,33 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // Log request information for debugging
+    console.log('Received request to notion-page function');
+    
     const notionToken = Deno.env.get('NOTION_TOKEN');
     
     if (!notionToken) {
       console.error('Notion token is not configured');
-      throw new Error('Notion token is not configured');
+      return new Response(
+        JSON.stringify({ 
+          error: 'Notion token is not configured',
+          message: 'Please set the NOTION_TOKEN in your Supabase project'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 500,
+        }
+      );
     }
     
     // Create Notion client with the token
     const notion = new Client({ auth: notionToken });
     
-    // The page ID without hyphens
+    // Using a hardcoded page ID for this example
+    // In production, you might want to make this configurable
     const pageId = '1d96b3e4e1aa81a68d30f4e48b24222b';
+
+    console.log(`Fetching Notion blocks for page ID: ${pageId}`);
 
     // Get the page content using the blocks API
     const response = await notion.blocks.children.list({
@@ -34,6 +49,7 @@ Deno.serve(async (req) => {
 
     console.log('Notion API Response:', JSON.stringify(response));
     
+    // Return the response
     return new Response(JSON.stringify(response), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
@@ -41,16 +57,17 @@ Deno.serve(async (req) => {
   } catch (error) {
     console.error('Notion API Error:', error);
     
-    // Detailed error response for debugging
-    return new Response(
-      JSON.stringify({ 
-        error: error.message, 
-        stack: error.stack,
-        message: 'Failed to fetch content from Notion API'
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
-    );
+    // Create a more detailed error response
+    const errorResponse = {
+      error: error.message,
+      stack: error.stack,
+      message: 'Failed to fetch content from Notion API',
+      time: new Date().toISOString(),
+    };
+    
+    return new Response(JSON.stringify(errorResponse), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 500,
+    });
   }
 });
