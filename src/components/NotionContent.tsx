@@ -30,23 +30,29 @@ export const NotionContent = () => {
       
       console.log("Fetching Notion content...");
       
-      // Call the Supabase Edge Function with a timeout
-      const functionPromise = supabase.functions.invoke('notion-page');
-      
-      // Set a timeout to catch long-running requests
+      // Use Promise.race to handle timeouts
       const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error("Request timed out")), 10000);
+        setTimeout(() => reject(new Error("Request timed out after 15 seconds")), 15000);
+      });
+      
+      // Ensure we're properly using the invoke method with correct parameters
+      const functionPromise = supabase.functions.invoke('notion-page', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: {} // Empty body for a simple request
       });
       
       // Race the function promise against the timeout
       const { data, error: functionError } = await Promise.race([
         functionPromise,
-        timeoutPromise,
-      ]) as any;
+        timeoutPromise as Promise<any>
+      ]);
       
       if (functionError) {
         console.error('Function invocation error:', functionError);
-        throw new Error(`Function error: ${functionError.message}`);
+        throw new Error(`Function error: ${functionError.message || 'Unknown error'}`);
       }
       
       console.log("Received response from Notion API:", data);
@@ -75,7 +81,7 @@ export const NotionContent = () => {
         title: "Success",
         description: "Content loaded successfully from Notion.",
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching Notion content:', err);
       
       let errorMessage = 'Failed to load content from Notion. Please try again later.';
@@ -89,7 +95,7 @@ export const NotionContent = () => {
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to load content. Please try again later.",
+        description: errorMessage,
       });
     } finally {
       setIsLoading(false);
@@ -102,12 +108,16 @@ export const NotionContent = () => {
   }, [retryCount]);
 
   const handleRetry = () => {
+    toast({
+      title: "Retrying",
+      description: "Attempting to fetch Notion content again...",
+    });
     setRetryCount(prev => prev + 1);
   };
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 p-4">
         <Skeleton className="h-4 w-full" />
         <Skeleton className="h-4 w-3/4" />
         <Skeleton className="h-4 w-5/6" />
@@ -122,7 +132,14 @@ export const NotionContent = () => {
       <Alert variant="destructive" className="mb-4">
         <AlertCircle className="h-4 w-4" />
         <AlertTitle>Error</AlertTitle>
-        <AlertDescription>{error}</AlertDescription>
+        <AlertDescription>
+          {error}
+          {error.includes('Notion token is not configured') && (
+            <div className="mt-2 text-sm">
+              Please make sure the NOTION_TOKEN environment variable is set in your Supabase project.
+            </div>
+          )}
+        </AlertDescription>
         <Button 
           variant="outline" 
           size="sm" 
