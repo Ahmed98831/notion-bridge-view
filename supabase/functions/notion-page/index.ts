@@ -1,6 +1,6 @@
 
-import { createClient } from 'https://esm.sh/@notionhq/client@2.2.14';
-import { Client } from 'https://esm.sh/@notionhq/client@2.2.14/build/src/Client';
+// Import the client properly
+import { Client } from 'https://esm.sh/@notionhq/client@2.2.14';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
