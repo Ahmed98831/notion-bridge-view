@@ -14,6 +14,31 @@ interface NotionBlock {
       plain_text: string;
     }>;
   };
+  heading_1?: {
+    rich_text: Array<{
+      plain_text: string;
+    }>;
+  };
+  heading_2?: {
+    rich_text: Array<{
+      plain_text: string;
+    }>;
+  };
+  heading_3?: {
+    rich_text: Array<{
+      plain_text: string;
+    }>;
+  };
+  bulleted_list_item?: {
+    rich_text: Array<{
+      plain_text: string;
+    }>;
+  };
+  numbered_list_item?: {
+    rich_text: Array<{
+      plain_text: string;
+    }>;
+  };
 }
 
 export const NotionContent = () => {
@@ -86,7 +111,6 @@ export const NotionContent = () => {
       
       let errorMessage = 'Failed to load content from Notion. Please try again later.';
       if (err instanceof Error) {
-        // Add more specific error information to help with debugging
         errorMessage = `${errorMessage} (${err.message})`;
       }
       
@@ -183,9 +207,58 @@ export const NotionContent = () => {
             </p>
           );
         }
+        if (block.type === 'heading_1') {
+          return (
+            <h1 key={index} className="text-3xl font-bold mb-4">
+              {block.heading_1?.rich_text?.map((text, i) => (
+                <span key={i}>{text.plain_text}</span>
+              )) || 'Empty heading'}
+            </h1>
+          );
+        }
+        if (block.type === 'heading_2') {
+          return (
+            <h2 key={index} className="text-2xl font-bold mb-3">
+              {block.heading_2?.rich_text?.map((text, i) => (
+                <span key={i}>{text.plain_text}</span>
+              )) || 'Empty heading'}
+            </h2>
+          );
+        }
+        if (block.type === 'heading_3') {
+          return (
+            <h3 key={index} className="text-xl font-bold mb-2">
+              {block.heading_3?.rich_text?.map((text, i) => (
+                <span key={i}>{text.plain_text}</span>
+              )) || 'Empty heading'}
+            </h3>
+          );
+        }
+        if (block.type === 'bulleted_list_item') {
+          return (
+            <ul key={index} className="list-disc pl-5 mb-4">
+              <li>
+                {block.bulleted_list_item?.rich_text?.map((text, i) => (
+                  <span key={i}>{text.plain_text}</span>
+                )) || 'Empty list item'}
+              </li>
+            </ul>
+          );
+        }
+        if (block.type === 'numbered_list_item') {
+          return (
+            <ol key={index} className="list-decimal pl-5 mb-4">
+              <li>
+                {block.numbered_list_item?.rich_text?.map((text, i) => (
+                  <span key={i}>{text.plain_text}</span>
+                )) || 'Empty list item'}
+              </li>
+            </ol>
+          );
+        }
         // Add support for other block types as needed
-        return <div key={index}>Unsupported block type: {block.type}</div>;
+        return <div key={index} className="mb-2 text-gray-500">Unsupported block type: {block.type}</div>;
       })}
     </div>
   );
-};
+}

@@ -22,7 +22,8 @@ Deno.serve(async (req) => {
     // Log request information for debugging
     console.log(`Received ${req.method} request to notion-page function`);
     
-    const notionToken = Deno.env.get('NOTION_TOKEN');
+    // Use the provided Notion token
+    const notionToken = Deno.env.get('NOTION_TOKEN') || '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';
     
     if (!notionToken) {
       console.error('Notion token is not configured');
@@ -43,16 +44,15 @@ Deno.serve(async (req) => {
     // Create Notion client with the token
     const notion = new Client({ auth: notionToken });
     
-    // Using a hardcoded page ID for this example
-    // In production, you might want to make this configurable
-    const pageId = '1d96b3e4e1aa81a68d30f4e48b24222b';
+    // Use the provided page ID
+    const pageId = '1df6b3e4e1aa8149a351c4c00b0f25cd';
 
     console.log(`Fetching Notion blocks for page ID: ${pageId}`);
 
     // Get the page content using the blocks API
     const response = await notion.blocks.children.list({
       block_id: pageId,
-      page_size: 50,
+      page_size: 100, // Increased page size to get more content
     });
 
     console.log(`Successfully fetched ${response.results.length} blocks from Notion`);
